@@ -1,0 +1,29 @@
+{
+    "manifest_version": 3,
+    "name":"Detoxify Pro",
+    "version":"1.0.0",
+    "author":"Venu Chinthakunta",
+    "description":"Impossible to be distracted. AI-powered YouTube filter.",
+    "Permissions" :[
+        "storage"
+    ],
+    "host_permissions": [
+        "*://*.youtube.com/*",
+        "https://generativelanguage.googleapis.com/*"
+    ],
+    "action":{
+        "default_popup":"index.html"
+    },
+
+    "background":{
+        "service_worker":"background.js",
+        "type":"module"
+    },
+    "content_scripts":[
+        {
+            "matches":["*://*.youtube.com/*"],
+            "js":["content.js"]
+        }
+    ]
+
+}
