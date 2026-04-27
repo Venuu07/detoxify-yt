@@ -1,11 +1,12 @@
 {
     "manifest_version": 3,
-    "name":"Detoxify Pro",
+    "name":"Detoxify YT",
     "version":"1.0.0",
     "author":"Venu Chinthakunta",
     "description":"Impossible to be distracted. AI-powered YouTube filter.",
-    "Permissions" :[
-        "storage"
+    "permissions": [
+        "storage",
+        "tabs"
     ],
     "host_permissions": [
         "*://*.youtube.com/*",
