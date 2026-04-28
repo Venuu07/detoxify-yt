@@ -38,13 +38,42 @@ function blockvideo(videoElement){
 }
 
 function scanForVideos(){
-    const unreviewedVideos = document.querySelectorAll('ytd-rich-item-renderer:not([data-detox-status="blocked"])')
+    const unreviewedVideos = Array.from(document.querySelectorAll('ytd-rich-item-renderer:not([data-detox-status])'))
+    
+    if(unreviewedVideos.length ==0)return;
+   
+    unreviewedVideos.forEach(v=>v.dataset.detoxStatus='processing');
 
-    unreviewedVideos.forEach(video => {
-        blockvideo(video);
+    const videoData = unreviewedVideos.map(video =>{
+        const titleElement = video.querySelector('#video-title')
+        return titleElement ? titleElement.innerText : "Unknown Title";
     })
-}
 
+    console.log("sending batch to Brain: ",videoData)
+
+    try {
+        
+        const respone=await chrome.runtime.sendMessage({
+            action:"evaluateVideos",
+            videoTitles:videoData
+         });
+
+         if(respone && Response.decisions){
+            unreviewedVideos.forEach((video,index)=>{
+                const decision=respone.decisions[index]
+                if (decision=='block') {
+                    blockvideo(video)
+                } else {
+                    video.dataset.detoxStatus="safe"
+                }
+            })
+         }
+
+        
+    } catch (error) {
+        console.error("Error talking to Brain:",error)
+    }
+}
 
 const observer = new MutationObserver((mutations) => {
     scanForVideos();
