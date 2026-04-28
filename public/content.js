@@ -1,87 +1,136 @@
-console.log("Detoxify YT: content script actively watching ...")
+console.log("Detoxify YT: Production Content Script Loaded.");
 
-function blockvideo(videoElement){
-    const thumbnailContainer = videoElement.querySelector('ytd-thumbnail')
-    const titleElement = videoElement.querySelector('#video-title')
 
-    if(thumbnailContainer){
-        const img = thumbnailContainer.querySelector('img')
-        if(img) img.style.display = 'none'
+const decisionCache = new Map();
 
-        thumbnailContainer.style.backgroundColor = '#222'
-        thumbnailContainer.style.display = 'flex'
-        thumbnailContainer.style.alignItems = 'center'
-        thumbnailContainer.style.justifyContent = 'center'
+function applyOverlay(videoElement) {
+const thumbnailContainer = videoElement.querySelector('ytd-thumbnail, ytd-thumbnail-view-model, .ytLockupViewModelContentImage, a#thumbnail');
+    const titleElement = videoElement.querySelector('#video-title, .yt-core-attributed-string');
+   
+    const links = videoElement.querySelectorAll('a');
+    links.forEach(link => {
+        link.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation(); 
+        };
+        link.style.pointerEvents = "none";
+    });
 
-        if(!thumbnailContainer.querySelector('.detox-x')){
-            const xMark = document.createElement('div')
-            xMark.className = 'detox-x';
-            xMark.innerText = 'x'
-            xMark.style.color = '#444'
-            xMark.style.fontSize = '48px'
-            xMark.style.fontWeight = 'bold'
-            thumbnailContainer.appendChild(xMark)
-        }
+   
+    if (thumbnailContainer && !thumbnailContainer.querySelector('.detox-overlay')) {
+        thumbnailContainer.style.position = 'relative'; 
 
-        thumbnailContainer.style.pointerEvents = "none"
+        const imgs = thumbnailContainer.querySelectorAll('img');
+        imgs.forEach(img => img.style.visibility = 'hidden');
+
+        const overlay = document.createElement('div');
+        overlay.className = 'detox-overlay';
+        overlay.style.position = 'absolute';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = '#18181b'; 
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.borderRadius = '12px'; 
+
+        const xMark = document.createElement('div');
+        xMark.innerText = '✕';
+        xMark.style.color = '#3f3f46';
+        xMark.style.fontSize = '48px';
+        xMark.style.fontWeight = 'bold';
+
+        overlay.appendChild(xMark);
+        thumbnailContainer.appendChild(overlay);
     }
 
-    // Moved these outside the thumbnail check so they run independently
-    if(titleElement){
-        titleElement.innerText = "Distracting Content Blocked"
-        titleElement.style.color = "#666"
-        titleElement.style.pointerEvents = 'none'
+    
+    if (titleElement) {
+        titleElement.innerText = "[ Content Filtered ]";
+        titleElement.style.color = "#52525b";
     }
 
-    // Mark as processed so the observer doesn't loop infinitely
-    videoElement.dataset.detoxStatus = 'blocked'
+    
+    videoElement.setAttribute('data-detox-status', 'blocked');
 }
 
-function scanForVideos(){
-    const unreviewedVideos = Array.from(document.querySelectorAll('ytd-rich-item-renderer:not([data-detox-status])'))
+async function processVideos() {
+    const unreviewedCards = Array.from(document.querySelectorAll('ytd-rich-item-renderer:not([data-detox-status])'));
     
-    if(unreviewedVideos.length ==0)return;
+    if (unreviewedCards.length === 0) return;
+
+    const cardsToProcess = [];
+    const titlesToEvaluate = [];
+
    
-    unreviewedVideos.forEach(v=>v.dataset.detoxStatus='processing');
+    unreviewedCards.forEach(card => {
+        const titleElement = card.querySelector('#video-title ,.yt-core-attributed-string');
+        const titleText = (titleElement && titleElement.innerText.trim() !== "") 
+            ? titleElement.innerText.trim() 
+            : card.textContent.trim();
 
-    const videoData = unreviewedVideos.map(video =>{
-        const titleElement = video.querySelector('#video-title')
-        return titleElement ? titleElement.innerText : "Unknown Title";
-    })
+        if (titleText !== "") {
+           
+            card.setAttribute('data-detox-status', 'processing');
 
-    console.log("sending batch to Brain: ",videoData)
+            if (decisionCache.has(titleText)) {
+                if (decisionCache.get(titleText) === 'block') {
+                    applyOverlay(card);
+                } else {
+                    card.setAttribute('data-detox-status', 'safe');
+                }
+            } else {
+                // We need to ask the Brain
+                cardsToProcess.push(card);
+                titlesToEvaluate.push(titleText);
+            }
+        }
+    });
+
+    if (cardsToProcess.length === 0) return;
+
+    console.log("Sending NEW batch to Brain: ", titlesToEvaluate);
 
     try {
+        const response = await chrome.runtime.sendMessage({
+            action: "evaluateVideos",
+            videoTitles: titlesToEvaluate
+        });
         
-        const respone=await chrome.runtime.sendMessage({
-            action:"evaluateVideos",
-            videoTitles:videoData
-         });
+        if (response && response.decisions) {
+            cardsToProcess.forEach((video, index) => {
+                const decision = response.decisions[index];
+                const title = titlesToEvaluate[index];
 
-         if(respone && Response.decisions){
-            unreviewedVideos.forEach((video,index)=>{
-                const decision=respone.decisions[index]
-                if (decision=='block') {
-                    blockvideo(video)
+                // Save to cache for the future
+                decisionCache.set(title, decision);
+
+                if (decision === 'block') {
+                    applyOverlay(video);
                 } else {
-                    video.dataset.detoxStatus="safe"
+                    video.setAttribute('data-detox-status', 'safe');
                 }
-            })
-         }
-
-        
+            });
+        }
     } catch (error) {
-        console.error("Error talking to Brain:",error)
+        console.log("Brain communication paused (Context likely invalidated, please refresh page).");
     }
 }
 
-const observer = new MutationObserver((mutations) => {
-    scanForVideos();
-})
 
-observer.observe(document.body, {
-    childList: true,
-    subtree: true
-})
+let scanTimeout = null;
+const observer = new MutationObserver(() => {
+    if (scanTimeout) clearTimeout(scanTimeout);
+    
+    scanTimeout = setTimeout(() => {
+        processVideos();
+    }, 500);
+});
 
-scanForVideos();
+observer.observe(document.body, { childList: true, subtree: true });
+
+// Initial run
+setTimeout(processVideos, 1000);
