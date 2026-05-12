@@ -1,136 +1,421 @@
-console.log("Detoxify YT: Production Content Script Loaded.");
 
+
+console.log("Detoxify YT: Advanced Detox Engine Loaded");
+
+/* =========================================================
+   GLOBAL CSS INJECTION
+========================================================= */
+
+const style = document.createElement("style");
+
+style.textContent = `
+
+/* =========================================================
+   HIDE EVERYTHING INITIALLY
+========================================================= */
+
+ytd-rich-item-renderer,
+ytd-video-renderer,
+ytd-grid-video-renderer,
+ytd-compact-video-renderer,
+ytd-rich-grid-media {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.18s ease-in-out !important;
+}
+
+/* =========================================================
+   SAFE VIDEOS
+========================================================= */
+
+.detox-safe {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+/* =========================================================
+   BLOCKED VIDEOS
+========================================================= */
+
+.detox-blocked {
+    opacity: 1 !important;
+    pointer-events: none !important;
+}
+
+/* =========================================================
+   BLOCKED TITLE STYLE
+========================================================= */
+
+.detox-decoy-title {
+    color: #71717a !important;
+    font-size: 14px !important;
+    line-height: 20px !important;
+    font-weight: 500 !important;
+    margin-top: 8px !important;
+    pointer-events: none !important;
+    user-select: none !important;
+}
+
+/* =========================================================
+   REMOVE ORIGINAL TITLE VISUALLY
+========================================================= */
+
+.detox-hidden-title {
+    display: none !important;
+}
+
+`;
+
+document.documentElement.appendChild(style);
+
+/* =========================================================
+   CACHE
+========================================================= */
 
 const decisionCache = new Map();
 
-function applyOverlay(videoElement) {
-const thumbnailContainer = videoElement.querySelector('ytd-thumbnail, ytd-thumbnail-view-model, .ytLockupViewModelContentImage, a#thumbnail');
-    const titleElement = videoElement.querySelector('#video-title, .yt-core-attributed-string');
-   
-    const links = videoElement.querySelectorAll('a');
-    links.forEach(link => {
-        link.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation(); 
-        };
-        link.style.pointerEvents = "none";
+/* =========================================================
+   TITLE REPLACEMENT
+========================================================= */
+
+function replaceBlockedTitle(videoElement) {
+
+    const possibleTitles = videoElement.querySelectorAll(`
+        h3,
+        h3 a,
+        #video-title-link,
+        #video-title,
+        yt-formatted-string,
+        .yt-core-attributed-string
+    `);
+
+    if (!possibleTitles.length) {
+        console.log("NO TITLE FOUND:", videoElement);
+        return;
+    }
+
+    possibleTitles.forEach(node => {
+
+        const text = node.innerText?.trim();
+
+        if (!text || text.length < 5) return;
+
+        if (node.dataset.detoxified) return;
+
+        node.dataset.detoxified = "true";
+
+        // Hide original title
+        node.classList.add("detox-hidden-title");
+
+        const parent = node.parentElement;
+
+        if (!parent) return;
+
+        if (parent.querySelector(".detox-decoy-title")) return;
+
+        // Create fake title
+        const fakeTitle = document.createElement("div");
+
+        fakeTitle.className = "detox-decoy-title";
+
+        fakeTitle.innerText = "Distracting Content Blocked";
+
+        parent.appendChild(fakeTitle);
     });
-
-   
-    if (thumbnailContainer && !thumbnailContainer.querySelector('.detox-overlay')) {
-        thumbnailContainer.style.position = 'relative'; 
-
-        const imgs = thumbnailContainer.querySelectorAll('img');
-        imgs.forEach(img => img.style.visibility = 'hidden');
-
-        const overlay = document.createElement('div');
-        overlay.className = 'detox-overlay';
-        overlay.style.position = 'absolute';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.backgroundColor = '#18181b'; 
-        overlay.style.zIndex = '9999';
-        overlay.style.display = 'flex';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.style.borderRadius = '12px'; 
-
-        const xMark = document.createElement('div');
-        xMark.innerText = '✕';
-        xMark.style.color = '#3f3f46';
-        xMark.style.fontSize = '48px';
-        xMark.style.fontWeight = 'bold';
-
-        overlay.appendChild(xMark);
-        thumbnailContainer.appendChild(overlay);
-    }
-
-    
-    if (titleElement) {
-        titleElement.innerText = "[ Content Filtered ]";
-        titleElement.style.color = "#52525b";
-    }
-
-    
-    videoElement.setAttribute('data-detox-status', 'blocked');
 }
 
+/* =========================================================
+   BLOCK THUMBNAIL
+========================================================= */
+
+function blockThumbnail(videoElement) {
+
+    const thumbnail = videoElement.querySelector(`
+        ytd-thumbnail,
+        ytd-thumbnail-view-model,
+        .ytLockupViewModelContentImage,
+        a#thumbnail
+    `);
+
+    if (!thumbnail) return;
+
+    if (thumbnail.querySelector(".detox-overlay")) return;
+
+    thumbnail.style.position = "relative";
+
+    // Hide images
+    const imgs = thumbnail.querySelectorAll("img");
+
+    imgs.forEach(img => {
+        img.src = "";
+        img.style.display = "none";
+        img.style.visibility = "hidden";
+    });
+
+    // Overlay
+    const overlay = document.createElement("div");
+
+    overlay.className = "detox-overlay";
+
+    overlay.style.position = "absolute";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+
+    overlay.style.backgroundColor = "#18181b";
+
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+
+    overlay.style.borderRadius = "12px";
+
+    overlay.style.zIndex = "999999";
+
+    overlay.style.cursor = "not-allowed";
+
+    overlay.addEventListener(
+        "click",
+        (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        },
+        true
+    );
+
+    const xMark = document.createElement("div");
+
+    xMark.innerText = "✕";
+
+    xMark.style.color = "#3f3f46";
+    xMark.style.fontSize = "48px";
+    xMark.style.fontWeight = "bold";
+
+    overlay.appendChild(xMark);
+
+    thumbnail.appendChild(overlay);
+}
+
+/* =========================================================
+   DISABLE VIDEO
+========================================================= */
+
+function disableVideo(videoElement) {
+
+    const links = videoElement.querySelectorAll("a");
+
+    links.forEach(link => {
+
+        link.removeAttribute("href");
+
+        link.style.cursor = "not-allowed";
+
+        const clone = link.cloneNode(true);
+
+        if (link.parentNode) {
+            link.parentNode.replaceChild(clone, link);
+        }
+    });
+
+    videoElement.addEventListener(
+        "click",
+        (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            return false;
+        },
+        true
+    );
+}
+
+/* =========================================================
+   APPLY BLOCK
+========================================================= */
+
+function applyOverlay(videoElement) {
+
+    if (videoElement.dataset.detoxApplied) return;
+
+    videoElement.dataset.detoxApplied = "true";
+
+    replaceBlockedTitle(videoElement);
+
+    blockThumbnail(videoElement);
+
+    disableVideo(videoElement);
+
+    videoElement.classList.add("detox-blocked");
+
+    videoElement.setAttribute("data-detox-status", "blocked");
+}
+
+/* =========================================================
+   SHOW SAFE VIDEO
+========================================================= */
+
+function allowVideo(videoElement) {
+
+    videoElement.classList.add("detox-safe");
+
+    videoElement.setAttribute("data-detox-status", "safe");
+}
+
+/* =========================================================
+   GET ALL VIDEO CARDS
+========================================================= */
+
+function getAllVideoCards() {
+
+    return Array.from(
+        document.querySelectorAll(`
+            ytd-rich-item-renderer,
+            ytd-video-renderer,
+            ytd-grid-video-renderer,
+            ytd-compact-video-renderer,
+            ytd-rich-grid-media
+        `)
+    );
+}
+
+/* =========================================================
+   PROCESS VIDEOS
+========================================================= */
+
 async function processVideos() {
-    const unreviewedCards = Array.from(document.querySelectorAll('ytd-rich-item-renderer:not([data-detox-status])'));
-    
-    if (unreviewedCards.length === 0) return;
+
+    const allCards = getAllVideoCards();
+
+    const unprocessedCards = allCards.filter(
+        card => !card.hasAttribute("data-detox-status")
+    );
+
+    if (!unprocessedCards.length) return;
 
     const cardsToProcess = [];
     const titlesToEvaluate = [];
 
-   
-    unreviewedCards.forEach(card => {
-        const titleElement = card.querySelector('#video-title ,.yt-core-attributed-string');
-        const titleText = (titleElement && titleElement.innerText.trim() !== "") 
-            ? titleElement.innerText.trim() 
-            : card.textContent.trim();
+    unprocessedCards.forEach(card => {
 
-        if (titleText !== "") {
-           
-            card.setAttribute('data-detox-status', 'processing');
+        card.setAttribute("data-detox-status", "processing");
 
-            if (decisionCache.has(titleText)) {
-                if (decisionCache.get(titleText) === 'block') {
-                    applyOverlay(card);
-                } else {
-                    card.setAttribute('data-detox-status', 'safe');
-                }
-            } else {
-                // We need to ask the Brain
-                cardsToProcess.push(card);
-                titlesToEvaluate.push(titleText);
-            }
+        const titleElement = card.querySelector(`
+            h3,
+            h3 a,
+            #video-title-link,
+            #video-title,
+            yt-formatted-string,
+            .yt-core-attributed-string
+        `);
+
+        const titleText =
+            titleElement?.innerText?.trim() ||
+            card.innerText?.trim() ||
+            "";
+
+        if (!titleText) {
+            allowVideo(card);
+            return;
         }
+
+        // Cache hit
+        if (decisionCache.has(titleText)) {
+
+            const decision = decisionCache.get(titleText);
+
+            if (decision === "block") {
+                applyOverlay(card);
+            } else {
+                allowVideo(card);
+            }
+
+            return;
+        }
+
+        cardsToProcess.push(card);
+
+        titlesToEvaluate.push(titleText);
     });
 
-    if (cardsToProcess.length === 0) return;
+    if (!cardsToProcess.length) return;
 
-    console.log("Sending NEW batch to Brain: ", titlesToEvaluate);
+    console.log("Evaluating:", titlesToEvaluate);
 
     try {
+
         const response = await chrome.runtime.sendMessage({
             action: "evaluateVideos",
             videoTitles: titlesToEvaluate
         });
-        
-        if (response && response.decisions) {
-            cardsToProcess.forEach((video, index) => {
-                const decision = response.decisions[index];
-                const title = titlesToEvaluate[index];
 
-                // Save to cache for the future
-                decisionCache.set(title, decision);
+        if (!response?.decisions) {
 
-                if (decision === 'block') {
-                    applyOverlay(video);
-                } else {
-                    video.setAttribute('data-detox-status', 'safe');
-                }
+            cardsToProcess.forEach(card => {
+                allowVideo(card);
             });
+
+            return;
         }
+
+        cardsToProcess.forEach((video, index) => {
+
+            const decision = response.decisions[index];
+
+            const title = titlesToEvaluate[index];
+
+            decisionCache.set(title, decision);
+
+            if (decision === "block") {
+
+                applyOverlay(video);
+
+            } else {
+
+                allowVideo(video);
+            }
+        });
+
     } catch (error) {
-        console.log("Brain communication paused (Context likely invalidated, please refresh page).");
+
+        console.error("Background error:", error);
+
+        // Fail-safe
+        cardsToProcess.forEach(card => {
+            allowVideo(card);
+        });
     }
 }
 
+/* =========================================================
+   MUTATION OBSERVER
+========================================================= */
 
 let scanTimeout = null;
+
 const observer = new MutationObserver(() => {
-    if (scanTimeout) clearTimeout(scanTimeout);
-    
+
+    if (scanTimeout) {
+        clearTimeout(scanTimeout);
+    }
+
     scanTimeout = setTimeout(() => {
         processVideos();
-    }, 500);
+    }, 250);
 });
 
-observer.observe(document.body, { childList: true, subtree: true });
+observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});
 
-// Initial run
-setTimeout(processVideos, 1000);
+/* =========================================================
+   INITIAL LOAD
+========================================================= */
+
+setTimeout(() => {
+    processVideos();
+}, 500);
+
