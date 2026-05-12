@@ -1,131 +1,262 @@
-import { useState,useEffect } from "react";
+import { useState, useEffect } from "react";
 
-function App(){
+function App() {
 
-  const [apiKey,setApiKey] = useState('');
-  const [categories,setCategories] = useState('');
-  const [isFilterEnabled,setIsFilterEnabled]=useState(true)
-  const [isKeySaved,setIsKeySaved] = useState(false);
-  const [status,setStatus] = useState('');
+  const [apiKey, setApiKey] = useState("");
+  const [categories, setCategories] = useState("");
+  const [isFilterEnabled, setIsFilterEnabled] = useState(true);
+  const [isKeySaved, setIsKeySaved] = useState(false);
+  const [status, setStatus] = useState("");
 
-  useEffect(()=>{
+  useEffect(() => {
 
-    if(typeof chrome!=='undefined' && chrome.storage){
-      chrome.storage.local.get(['geminiApiKey','allowedCategories','filterEnabled'],(result)=>{
-        if(result.geminiApiKey){
-          setApiKey(result.geminiApiKey)
-          setIsKeySaved(true)
+    if (typeof chrome !== "undefined" && chrome.storage) {
+
+      chrome.storage.local.get(
+        ["geminiApiKey", "allowedCategories", "filterEnabled"],
+        (result) => {
+
+          if (result.geminiApiKey) {
+            setApiKey(result.geminiApiKey);
+            setIsKeySaved(true);
+          }
+
+          if (result.allowedCategories) {
+            setCategories(result.allowedCategories);
+          }
+
+          if (result.filterEnabled !== undefined) {
+            setIsFilterEnabled(result.filterEnabled);
+          }
         }
-        if(result.allowedCategories) setCategories(result.allowedCategories)
-        if(result.filterEnabled !== undefined) setIsFilterEnabled(result.filterEnabled)
-      })
+      );
     }
-  },[])
 
-  const handleSave=()=>{
-    if(!apiKey.trim() || !categories.trim()){
-      setStatus('Please fill in all fields');
+  }, []);
+
+  const handleSave = () => {
+
+    if (!apiKey.trim() || !categories.trim()) {
+      setStatus("Please fill all fields");
       return;
     }
 
-    if(typeof chrome !='undefined' && chrome.storage){
-      chrome.storage.local.set({
-        geminiApiKey:apiKey.trim(),
-        allowedCategories:categories.trim(),
-        filterEnabled:isFilterEnabled
-      },()=>{
-        setStatus('Settings securely saved')
-        setIsKeySaved(true)
-        setTimeout(()=> setStatus(''),2000)
+    chrome.storage.local.set(
+      {
+        geminiApiKey: apiKey.trim(),
+        allowedCategories: categories.trim(),
+        filterEnabled: isFilterEnabled
+      },
+      () => {
 
-        chrome.tabs.query({active:true,currentWindow:true},(tabs)=>{
-          if(tabs[0] && tabs[0].url.includes("youtube.com")) {
-            chrome.tabs.sendMessage(tabs[0].id,{
-              action:'updateSettings',
-              categories:categories,
-              isEnabled:isFilterEnabled
-            })
+        setStatus("Settings saved");
+
+        setIsKeySaved(true);
+
+        setTimeout(() => {
+          setStatus("");
+        }, 2000);
+
+        chrome.tabs.query(
+          { active: true, currentWindow: true },
+          (tabs) => {
+
+            if (
+              tabs[0] &&
+              tabs[0].url.includes("youtube.com")
+            ) {
+
+              chrome.tabs.sendMessage(
+                tabs[0].id,
+                {
+                  action: "updateSettings",
+                  categories,
+                  isEnabled: isFilterEnabled
+                }
+              );
+            }
           }
-        })
-      })
-    }
-    
+        );
+      }
+    );
   };
 
-  return(
-    <div className='w-80 p-5 bg-gray-900 text-gray-100 font-sans shadow-xl'>
-      <div className="flex justify-between items-center mb-4">
+  return (
+
+    <div className="w-[340px] bg-[#0f1115] text-white p-5 font-sans">
+
+      {/* HEADER */}
+      <div className="flex items-start justify-between mb-6">
+
         <div>
-          <h1 className="text-xl font-bold text-blue-400"> Detoxify YT</h1>
-          <p className="text-xs text-gray-400">Impossible to Distracted.</p>
+          <h1 className="text-lg font-semibold tracking-tight">
+            Detoxify YT
+          </h1>
+
+          <p className="text-xs text-zinc-500 mt-1">
+            Eliminate algorithmic distractions
+          </p>
         </div>
 
-      <label className='relative inline-flex items-center cursor-pointer'>
-        <input
-          type='checkbox'
-          className="sr-only-peer"
-          checked={isFilterEnabled}
-          onChange={()=> setIsFilterEnabled(!isFilterEnabled)}
-        />
-        <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-
-       
-      </label>
-      </div>
-
-      <div className="space-y-4">
-        { !isKeySaved ? (
-          <div>
-            <label className='block text-sm font-medium text-gray-300 mb-1'>
-              Gemini API key
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e)=> setApiKey(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-b-gray-700 rounded text-sm focus:outline-none focus:border-blue-500 text-white"
-              placeholder="AIfjKu..."
-            />
-          </div>
-        ) :(<div className="flex justify-between items-center bg-gray-800 p-2 rounded border border-green-900">
-          <span className="text-xs text-green-400 font-medium">API Key Active</span>
-          <button
-            onClick={() => setIsKeySaved(false)}
-              className="text-xs text-gray-400 hover:text-white underline"
-          >
-            Edit
-          </button>
-        </div>)}
-
-        <div>
-          <label
-            className="block text-sm font-medium text-gray-300 mb-1"
-          >Allowed Topics</label>
-          <textarea
-           value={categories}  
-           onChange={(e)=>setCategories(e.target.value)}
-           className={`w-full px-3 py-2 bg-gray-800 border rounded text-sm focus:outline-none text-white resize-none ${isFilterEnabled ? 'border-gray-700 focus:border-blue-500' : 'border-gray-700 opacity-50 cursor-not-allowed'}`}
-           placeholder="eg.. coding,web dev,gym,standup comedy ..."
-           rows={3}
-           disabled={!isFilterEnabled}
+        {/* TOGGLE */}
+        <button
+          onClick={() =>
+            setIsFilterEnabled(!isFilterEnabled)
+          }
+          className={`w-12 h-6 rounded-full relative transition-all duration-300 ${
+            isFilterEnabled
+              ? "bg-blue-600"
+              : "bg-zinc-700"
+          }`}
+        >
+          <div
+            className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${
+              isFilterEnabled
+                ? "left-7"
+                : "left-1"
+            }`}
           />
-          <button
-            onClick={handleSave}
-            className="w-full bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
-          >
-            {isFilterEnabled ? 'Apply Strict Filter' :'Save Settings (Filter Off'}
-          </button>
+        </button>
 
-          {status && (
-            <p className="text-sm text-center mt-2 text-green-400 transition-opacity">
-              {status}
-            </p>
-          )}
-        </div>
       </div>
+
+      {/* API KEY */}
+      <div className="mb-5">
+
+        <label className="text-xs uppercase tracking-wide text-zinc-500 block mb-2">
+          Gemini API Key
+        </label>
+
+        {!isKeySaved ? (
+
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) =>
+              setApiKey(e.target.value)
+            }
+            placeholder="AIza..."
+            className="
+              w-full
+              bg-[#171a21]
+              border
+              border-zinc-800
+              rounded-xl
+              px-4
+              py-3
+              text-sm
+              outline-none
+              focus:border-blue-500
+              transition
+            "
+          />
+
+        ) : (
+
+          <div className="
+            flex
+            items-center
+            justify-between
+            bg-[#171a21]
+            border
+            border-zinc-800
+            rounded-xl
+            px-4
+            py-3
+          ">
+
+            <span className="text-sm text-green-400">
+              API Key Connected
+            </span>
+
+            <button
+              onClick={() =>
+                setIsKeySaved(false)
+              }
+              className="
+                text-xs
+                text-zinc-400
+                hover:text-white
+                transition
+              "
+            >
+              Edit
+            </button>
+
+          </div>
+        )}
+      </div>
+
+      {/* TOPICS */}
+      <div className="mb-5">
+
+        <label className="text-xs uppercase tracking-wide text-zinc-500 block mb-2">
+          Allowed Topics
+        </label>
+
+        <textarea
+          value={categories}
+          onChange={(e) =>
+            setCategories(e.target.value)
+          }
+          rows={4}
+          disabled={!isFilterEnabled}
+          placeholder="coding, web dev, gym..."
+          className={`
+            w-full
+            bg-[#171a21]
+            border
+            rounded-xl
+            px-4
+            py-3
+            text-sm
+            resize-none
+            outline-none
+            transition
+            ${
+              isFilterEnabled
+                ? "border-zinc-800 focus:border-blue-500"
+                : "border-zinc-800 opacity-40 cursor-not-allowed"
+            }
+          `}
+        />
+
+      </div>
+
+      {/* BUTTON */}
+      <button
+        onClick={handleSave}
+        className="
+          w-full
+          bg-white
+          text-black
+          rounded-xl
+          py-3
+          text-sm
+          font-medium
+          hover:opacity-90
+          transition
+        "
+      >
+        {isFilterEnabled
+          ? "Apply Filter"
+          : "Save Settings"}
+      </button>
+
+      {/* STATUS */}
+      {status && (
+        <div className="
+          text-center
+          text-xs
+          text-zinc-400
+          mt-4
+        ">
+          {status}
+        </div>
+      )}
 
     </div>
-  )
+  );
 }
 
 export default App;
