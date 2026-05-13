@@ -1,50 +1,67 @@
-import express from 'express'
-import dotenv from 'dotenv'
-import cors from 'cors'
-
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3000;
+
+/* =========================================
+   MIDDLEWARE
+========================================= */
 
 app.use(cors());
 
 app.use(express.json());
 
-app.get('/', (req, res) => {
+/* =========================================
+   TEST ROUTE
+========================================= */
+
+app.get("/", (req, res) => {
     res.send("Detoxify backend running");
-})
+});
 
+/* =========================================
+   EVALUATE ROUTE
+========================================= */
 
-app.post("/evaluate",async (req, res)=>{
+app.post("/evaluate", async (req, res) => {
 
     console.log("Received request body:");
+
     console.log(req.body);
 
-    const {titles, catogories} = req.body
+    const { titles, categories } = req.body;
 
     console.log("Titles:", titles);
-    console.log("Categories:", catogories);
 
+    console.log("Categories:", categories);
+
+    // Dummy logic for now
     const decisions = titles.map(title => {
-        if(
+
+        if (
             title.toLowerCase().includes("tutorial")
-        ){
-            return "keep"
+        ) {
+            return "keep";
         }
 
-        return "block"
-    })
+        return "block";
+    });
 
     res.json({
-        success:true,
+        success: true,
         decisions
-    })
-})
+    });
+});
 
+/* =========================================
+   START SERVER
+========================================= */
 
-app.listen(PORT ,() => {
-    console.log(`Server is running on port ${PORT}`);
-})
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
