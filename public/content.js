@@ -11,11 +11,36 @@ const style = document.createElement("style");
 style.textContent = `
 
 .detox-pending {
-    opacity : 0 !important;
+    position: relative !important;
+    overflow: hidden !important;
+    border-radius: 16px !important;
+    background: #1818b !important;
     pointer-events: none !important;
-    transition : opacity 0.18s ease-in-out !important;
+
 }
 
+.detox-pending * {
+    opacity: 0 !important;
+}
+
+.detox-pending::before{
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+
+    background:
+        linear-gradient(
+            90deg,
+            
+            #18181b 25%,
+            #27272a 50%,
+            #18181b 75%
+        ) !important;
+
+    background-size: 200% 100% !important;
+    animation: detox-shimmer 1.2s linear infinite !important;
+    z-index: 10 !important;
+}
 /* =========================================================
    SAFE VIDEOS
 ========================================================= */
@@ -54,9 +79,18 @@ style.textContent = `
 
 .detox-hidden-title {
     display: none !important;
+
+@keyframes detox-shimmer {
+    0%{
+    background-position: 200% 0 ;
+    }
+    100%{
+    background-position: -200% 0 ;}
 }
+}}
 
 `;
+
 
 document.documentElement.appendChild(style);
 
@@ -66,6 +100,10 @@ document.documentElement.appendChild(style);
 ========================================================= */
 
 const decisionCache = new Map();
+
+const pendingEvalutions = new Set()
+
+
 
 /* =========================================================
    TITLE REPLACEMENT
@@ -345,6 +383,10 @@ async function processVideos(cards = null) {
             card.innerText?.trim() ||
             "";
 
+        if(pendingEvalutions.has(titleText)){
+            return;
+        }
+
         if (!titleText) {
             allowVideo(card);
             return;
@@ -363,6 +405,8 @@ async function processVideos(cards = null) {
 
             return;
         }
+
+        pendingEvalutions.add(titleText);
 
         cardsToProcess.push(card);
 
@@ -397,6 +441,8 @@ async function processVideos(cards = null) {
 
             const title = titlesToEvaluate[index];
 
+            pendingEvalutions.delete(title);
+
             decisionCache.set(title, decision);
 
             if (decision === "block") {
@@ -417,8 +463,11 @@ async function processVideos(cards = null) {
         
         // Fail-safe
         cardsToProcess.forEach(card => {
-            card.classList.remove("detox-pending");
-            
+           
+            titlesToEvaluate.forEach(title => {
+                pendingEvalutions.delete(title);
+            })
+             card.classList.remove("detox-pending");
             allowVideo(card);
         });
     }
