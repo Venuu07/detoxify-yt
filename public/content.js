@@ -60,6 +60,7 @@ style.textContent = `
 
 document.documentElement.appendChild(style);
 
+
 /* =========================================================
    CACHE
 ========================================================= */
@@ -427,17 +428,16 @@ async function processVideos() {
    MUTATION OBSERVER
 ========================================================= */
 
-let scanTimeout = null;
+
+let processingTimeout = null;
 
 const observer = new MutationObserver(() => {
 
-    if (scanTimeout) {
-        clearTimeout(scanTimeout);
-    }
-
-    scanTimeout = setTimeout(() => {
+   clearTimeout(processingTimeout);
+   
+    processingTimeout = setTimeout(() => {
         processVideos();
-    }, 250);
+    }, 300);
 });
 
 observer.observe(document.body, {
