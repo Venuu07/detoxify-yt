@@ -10,18 +10,10 @@ const style = document.createElement("style");
 
 style.textContent = `
 
-/* =========================================================
-   HIDE EVERYTHING INITIALLY
-========================================================= */
-
-ytd-rich-item-renderer,
-ytd-video-renderer,
-ytd-grid-video-renderer,
-ytd-compact-video-renderer,
-ytd-rich-grid-media {
-    opacity: 0 !important;
+.detox-pending {
+    opacity : 0 !important;
     pointer-events: none !important;
-    transition: opacity 0.18s ease-in-out !important;
+    transition : opacity 0.18s ease-in-out !important;
 }
 
 /* =========================================================
@@ -302,6 +294,9 @@ async function processVideos() {
 
         card.setAttribute("data-detox-status", "processing");
 
+        card.classList.add("detox-pending");
+
+
         const titleElement = card.querySelector(`
             h3,
             h3 a,
@@ -362,6 +357,8 @@ async function processVideos() {
 
         cardsToProcess.forEach((video, index) => {
 
+            video.classList.remove("detox-pending");
+
             const decision = response.decisions[index];
 
             const title = titlesToEvaluate[index];
@@ -382,8 +379,12 @@ async function processVideos() {
 
         console.error("Background error:", error);
 
+
+        
         // Fail-safe
         cardsToProcess.forEach(card => {
+            card.classList.remove("detox-pending");
+            
             allowVideo(card);
         });
     }
