@@ -178,15 +178,48 @@ function blockThumbnail(videoElement) {
         true
     );
 
-    const xMark = document.createElement("div");
+    const content = document.createElement("div");
 
-    xMark.innerText = "✕";
+    content.style.display = "flex";
+    content.style.flexDirection = "column";
+    content.style.alignItems = "center";
+    content.style.justifyContent = "center";
+    content.style.gap = "`10px"
+    content.style.textAlign = "center";
+    content.style.padding = "20px";
 
-    xMark.style.color = "#3f3f46";
-    xMark.style.fontSize = "48px";
-    xMark.style.fontWeight = "bold";
+    const shield = document.createElement("div");
 
-    overlay.appendChild(xMark);
+    shield.innerText ="🛡";
+
+    shield.style.fontSize = "42px"
+
+    const heading = document.createElement("div");
+
+    heading.innerText = "Focus Protected";
+
+    heading.style.color ="fafafa"
+    heading.style.fontSize = "18px"
+    heading.style.fontWeight = "600"
+
+    const subtitle = document.createElement("div");
+
+    subtitle.innerText = "Distractiring content blocked"
+
+    subtitle.style.color ="#71717a"
+    subtitle.style.fontSize = "13px"
+    subtitle.style.lineHeight = "18px"
+
+    content.appendChild(shield);
+    content.appendChild(heading);
+    content.appendChild(subtitle);
+    
+    overlay.appendChild(content);
+
+    overlay.style.backdropFilter = "blur(10px)";
+    overlay.style.border = "1px solid #27272a";
+    overlay.style.boxShadow =
+        "0 0 20px rgba(0,0,0,0.35)";
 
     thumbnail.appendChild(overlay);
 }
