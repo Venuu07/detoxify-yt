@@ -1,5 +1,9 @@
 console.log("Detoxify Brain: Service Worker Initialized (Module Mode).");
 
+const titleCache = new Map();
+
+
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'evaluateVideos') {
         console.log("Brain received batch of", request.videoTitles.length, "titles.");
@@ -41,6 +45,27 @@ async function evaluateWithGemini(titles) {
 
         console.log("Contacting backend server...");
 
+        const decisions = []
+
+        const uncachedTitles=[]
+        
+        const uncachedIndexes=[]
+
+        titles.forEach((title,index) =>{
+            if(titleCache.has(title)){
+                decisions[index] = titleCache.get(title)
+            } else {
+                uncachedTitles.push(title)
+                uncachedIndexes.push(index)
+            }
+        })
+
+        if(uncachedTitles.length === 0){
+            console.log("All titles were cached. Returning decisions:", decisions);
+            return decisions;
+        }
+
+
         const response = await fetch(
             "http://localhost:3000/evaluate",
             {
@@ -51,7 +76,7 @@ async function evaluateWithGemini(titles) {
                 },
 
                 body: JSON.stringify({
-                    titles,
+                    titles: uncachedTitles,
                     categories: storage.allowedCategories
                 })
             }
@@ -68,7 +93,21 @@ async function evaluateWithGemini(titles) {
 
         console.log("Backend response:", data);
 
-        return data.decisions;
+        data.decisions.forEach((decision,index) => {
+
+            const originalIndex = uncachedIndexes[index]
+
+            const originalTitle = uncachedTitles[index]
+
+            decisions[originalIndex] = decision
+
+            titleCache.set(originalTitle, decision)
+
+          
+        })
+          console.log(`updated cache size : ${titleCache.size}`)
+
+            return decisions;
 
     } catch (error) {
 
