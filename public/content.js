@@ -205,7 +205,7 @@ function blockThumbnail(videoElement) {
 
     const subtitle = document.createElement("div");
 
-    subtitle.innerText = "Distractiring content blocked"
+    subtitle.innerText = "Distracting content blocked"
 
     subtitle.style.color ="#71717a"
     subtitle.style.fontSize = "13px"
@@ -311,9 +311,9 @@ function getAllVideoCards() {
    PROCESS VIDEOS
 ========================================================= */
 
-async function processVideos() {
+async function processVideos(cards = null) {
 
-    const allCards = getAllVideoCards();
+    const allCards = cards || getAllVideoCards();
 
     const unprocessedCards = allCards.filter(
         card => !card.hasAttribute("data-detox-status")
@@ -431,7 +431,38 @@ async function processVideos() {
 
 let processingTimeout = null;
 
-const observer = new MutationObserver(() => {
+const observer = new MutationObserver((mutations) => {
+
+    const addedVideoCards = [];
+
+    mutations.forEach((mutation) => {
+
+        if(!(node instanceof HTMLElement)) return;
+
+        const isDirectVideoCard = node.matches(`
+            ytd-rich-item-renderer,
+            ytd-video-renderer,
+            ytd-grid-video-renderer,
+            ytd-compact-video-renderer,
+            // ytd-rich-grid-media
+        `);
+        if (isDirectVideoCard) {
+            addedVideoCards.push(node);
+        }
+
+        const nestedCards = node.querySelectorAll(`
+            ytd-rich-item-renderer,
+            ytd-video-renderer,
+            ytd-grid-video-renderer,
+            ytd-compact-video-renderer,
+            // ytd-rich-grid-media
+        `);
+
+        if(nestedCards?.length){
+            addedVideoCards.push(...nestedVideoCards);
+        }
+
+    })
 
    clearTimeout(processingTimeout);
    
