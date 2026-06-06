@@ -14,12 +14,12 @@ style.textContent = `
     position: relative !important;
     overflow: hidden !important;
     border-radius: 16px !important;
-    background: #1818b !important;
+    background: #18181b !important;
     pointer-events: none !important;
 
 }
 
-.detox-pending * {
+.detox-pending > * {
     opacity: 0 !important;
 }
 
@@ -79,15 +79,16 @@ style.textContent = `
 
 .detox-hidden-title {
     display: none !important;
+}
 
 @keyframes detox-shimmer {
     0%{
-    background-position: 200% 0 ;
+        background-position: 200% 0;
     }
     100%{
-    background-position: -200% 0 ;}
+        background-position: -200% 0;
+    }
 }
-}}
 
 `;
 
@@ -101,9 +102,13 @@ document.documentElement.appendChild(style);
 
 const decisionCache = new Map();
 
-const pendingEvalutions = new Set()
-
-
+const VIDEO_CARD_SELECTOR = [
+    "ytd-rich-item-renderer",
+    "ytd-video-renderer",
+    "ytd-grid-video-renderer",
+    "ytd-compact-video-renderer",
+    "ytd-rich-grid-media"
+].join(",");
 
 /* =========================================================
    TITLE REPLACEMENT
@@ -178,7 +183,7 @@ function blockThumbnail(videoElement) {
     const imgs = thumbnail.querySelectorAll("img");
 
     imgs.forEach(img => {
-        img.src = "";
+        img.removeAttribute("src");
         img.style.display = "none";
         img.style.visibility = "hidden";
     });
@@ -223,7 +228,7 @@ function blockThumbnail(videoElement) {
     content.style.flexDirection = "column";
     content.style.alignItems = "center";
     content.style.justifyContent = "center";
-    content.style.gap = "`10px"
+    content.style.gap = "10px"
     content.style.textAlign = "center";
     content.style.padding = "20px";
 
@@ -237,7 +242,7 @@ function blockThumbnail(videoElement) {
 
     heading.innerText = "Focus Protected";
 
-    heading.style.color ="fafafa"
+    heading.style.color ="#fafafa"
     heading.style.fontSize = "18px"
     heading.style.fontWeight = "600"
 
@@ -305,6 +310,7 @@ function applyOverlay(videoElement) {
     if (videoElement.dataset.detoxApplied) return;
 
     videoElement.dataset.detoxApplied = "true";
+    videoElement.classList.remove("detox-pending");
 
     replaceBlockedTitle(videoElement);
 
@@ -323,6 +329,7 @@ function applyOverlay(videoElement) {
 
 function allowVideo(videoElement) {
 
+    videoElement.classList.remove("detox-pending");
     videoElement.classList.add("detox-safe");
 
     videoElement.setAttribute("data-detox-status", "safe");
@@ -334,15 +341,7 @@ function allowVideo(videoElement) {
 
 function getAllVideoCards() {
 
-    return Array.from(
-        document.querySelectorAll(`
-            ytd-rich-item-renderer,
-            ytd-video-renderer,
-            ytd-grid-video-renderer,
-            ytd-compact-video-renderer,
-            ytd-rich-grid-media
-        `)
-    );
+    return Array.from(document.querySelectorAll(VIDEO_CARD_SELECTOR));
 }
 
 /* =========================================================
@@ -359,8 +358,7 @@ async function processVideos(cards = null) {
 
     if (!unprocessedCards.length) return;
 
-    const cardsToProcess = [];
-    const titlesToEvaluate = [];
+    const cardsByTitle = new Map();
 
     unprocessedCards.forEach(card => {
 
@@ -383,10 +381,6 @@ async function processVideos(cards = null) {
             card.innerText?.trim() ||
             "";
 
-        if(pendingEvalutions.has(titleText)){
-            return;
-        }
-
         if (!titleText) {
             allowVideo(card);
             return;
@@ -406,14 +400,14 @@ async function processVideos(cards = null) {
             return;
         }
 
-        pendingEvalutions.add(titleText);
-
-        cardsToProcess.push(card);
-
-        titlesToEvaluate.push(titleText);
+        const matchingCards = cardsByTitle.get(titleText) || [];
+        matchingCards.push(card);
+        cardsByTitle.set(titleText, matchingCards);
     });
 
-    if (!cardsToProcess.length) return;
+    const titlesToEvaluate = Array.from(cardsByTitle.keys());
+
+    if (!titlesToEvaluate.length) return;
 
     console.log("Evaluating:", titlesToEvaluate);
 
@@ -424,51 +418,41 @@ async function processVideos(cards = null) {
             videoTitles: titlesToEvaluate
         });
 
-        if (!response?.decisions) {
+        if (
+            !Array.isArray(response?.decisions) ||
+            response.decisions.length !== titlesToEvaluate.length
+        ) {
 
-            cardsToProcess.forEach(card => {
-                allowVideo(card);
+            cardsByTitle.forEach(cardsForTitle => {
+                cardsForTitle.forEach(allowVideo);
             });
 
             return;
         }
 
-        cardsToProcess.forEach((video, index) => {
-
-            video.classList.remove("detox-pending");
-
+        titlesToEvaluate.forEach((title, index) => {
             const decision = response.decisions[index];
+            const normalizedDecision = decision === "block" ? "block" : "keep";
+            const cardsForTitle = cardsByTitle.get(title) || [];
 
-            const title = titlesToEvaluate[index];
+            decisionCache.set(title, normalizedDecision);
 
-            pendingEvalutions.delete(title);
-
-            decisionCache.set(title, decision);
-
-            if (decision === "block") {
-
-                applyOverlay(video);
-
-            } else {
-
-                allowVideo(video);
-            }
+            cardsForTitle.forEach(video => {
+                if (normalizedDecision === "block") {
+                    applyOverlay(video);
+                } else {
+                    allowVideo(video);
+                }
+            });
         });
 
     } catch (error) {
 
         console.error("Background error:", error);
 
-
-        
         // Fail-safe
-        cardsToProcess.forEach(card => {
-           
-            titlesToEvaluate.forEach(title => {
-                pendingEvalutions.delete(title);
-            })
-             card.classList.remove("detox-pending");
-            allowVideo(card);
+        cardsByTitle.forEach(cardsForTitle => {
+            cardsForTitle.forEach(allowVideo);
         });
     }
 }
@@ -482,41 +466,29 @@ let processingTimeout = null;
 
 const observer = new MutationObserver((mutations) => {
 
-    const addedVideoCards = [];
+    const addedVideoCards = new Set();
 
     mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
 
-        if(!(node instanceof HTMLElement)) return;
+            if (!(node instanceof HTMLElement)) return;
 
-        const isDirectVideoCard = node.matches(`
-            ytd-rich-item-renderer,
-            ytd-video-renderer,
-            ytd-grid-video-renderer,
-            ytd-compact-video-renderer,
-            // ytd-rich-grid-media
-        `);
-        if (isDirectVideoCard) {
-            addedVideoCards.push(node);
-        }
+            if (node.matches(VIDEO_CARD_SELECTOR)) {
+                addedVideoCards.add(node);
+            }
 
-        const nestedCards = node.querySelectorAll(`
-            ytd-rich-item-renderer,
-            ytd-video-renderer,
-            ytd-grid-video-renderer,
-            ytd-compact-video-renderer,
-            // ytd-rich-grid-media
-        `);
+            node.querySelectorAll(VIDEO_CARD_SELECTOR).forEach(card => {
+                addedVideoCards.add(card);
+            });
+        });
+    });
 
-        if(nestedCards?.length){
-            addedVideoCards.push(...nestedVideoCards);
-        }
+    if (!addedVideoCards.size) return;
 
-    })
-
-   clearTimeout(processingTimeout);
-   
+    clearTimeout(processingTimeout);
+    //reduced from 0(n) to 0(k) where k is number of added cards in mutation batch
     processingTimeout = setTimeout(() => {
-        processVideos();
+        processVideos(Array.from(addedVideoCards));
     }, 300);
 });
 
@@ -532,4 +504,3 @@ observer.observe(document.body, {
 setTimeout(() => {
     processVideos();
 }, 500);
-
