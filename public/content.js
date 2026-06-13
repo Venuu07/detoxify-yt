@@ -296,7 +296,7 @@ function blockThumbnail(videoElement) {
 
     const shield = document.createElement("div");
 
-    shield.innerText ="🛡";
+    shield.innerText = "🛡";
 
     shield.style.fontSize = "42px"
 
@@ -304,7 +304,7 @@ function blockThumbnail(videoElement) {
 
     heading.innerText = "Focus Protected";
 
-    heading.style.color ="#fafafa"
+    heading.style.color = "#fafafa"
     heading.style.fontSize = "18px"
     heading.style.fontWeight = "600"
 
@@ -312,14 +312,14 @@ function blockThumbnail(videoElement) {
 
     subtitle.innerText = "Distracting content blocked"
 
-    subtitle.style.color ="#71717a"
+    subtitle.style.color = "#71717a"
     subtitle.style.fontSize = "13px"
     subtitle.style.lineHeight = "18px"
 
     content.appendChild(shield);
     content.appendChild(heading);
     content.appendChild(subtitle);
-    
+
     overlay.appendChild(content);
 
     overlay.style.backdropFilter = "blur(10px)";

@@ -1,8 +1,5 @@
 console.log("Detoxify Brain: Service Worker Initialized (Module Mode).");
 
-const titleCache = new Map();
-
-
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === 'evaluateVideos') {
@@ -51,9 +48,13 @@ async function evaluateWithGemini(titles) {
         
         const uncachedIndexes=[]
 
+        // Fetch cache from session storage (survives service worker sleep)
+        const sessionData = await chrome.storage.session.get('titleCache');
+        const titleCache = sessionData.titleCache || {};
+
         titles.forEach((title,index) =>{
-            if(titleCache.has(title)){
-                decisions[index] = titleCache.get(title)
+            if(titleCache[title]){
+                decisions[index] = titleCache[title]
             } else {
                 uncachedTitles.push(title)
                 uncachedIndexes.push(index)
@@ -93,6 +94,10 @@ async function evaluateWithGemini(titles) {
 
         console.log("Backend response:", data);
 
+        // Get the freshest cache before updating
+        const currentSession = await chrome.storage.session.get('titleCache');
+        const currentCache = currentSession.titleCache || {};
+
         data.decisions.forEach((decision,index) => {
 
             const originalIndex = uncachedIndexes[index]
@@ -101,11 +106,12 @@ async function evaluateWithGemini(titles) {
 
             decisions[originalIndex] = decision
 
-            titleCache.set(originalTitle, decision)
-
-          
+            currentCache[originalTitle] = decision;
         })
-          console.log(`updated cache size : ${titleCache.size}`)
+        
+        // Save back to session storage
+        await chrome.storage.session.set({ titleCache: currentCache });
+        console.log(`updated cache size : ${Object.keys(currentCache).length}`)
 
             return decisions;
 
