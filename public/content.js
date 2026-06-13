@@ -14,105 +14,134 @@ style.textContent = `
     position: relative !important;
     overflow: hidden !important;
     border-radius: 16px !important;
-    background: #18181b !important;
+    background: #09090b !important;
     pointer-events: none !important;
-
 }
 
 .detox-pending > * {
     opacity: 0 !important;
 }
 
-.detox-pending::before{
+.detox-pending::before {
     content: "" !important;
     position: absolute !important;
     inset: 0 !important;
-
-    background:
-        linear-gradient(
-            90deg,
-            
-            #18181b 25%,
-            #27272a 50%,
-            #18181b 75%
-        ) !important;
-
+    background: linear-gradient(90deg, #09090b 25%, #18181b 50%, #09090b 75%) !important;
     background-size: 200% 100% !important;
-    animation: detox-shimmer 1.2s linear infinite !important;
+    animation: detox-shimmer 1.4s linear infinite !important;
     z-index: 10 !important;
 }
-/* =========================================================
-   SAFE VIDEOS
-========================================================= */
 
 .detox-safe {
     opacity: 1 !important;
     pointer-events: auto !important;
 }
 
-/* =========================================================
-   BLOCKED VIDEOS
-========================================================= */
-
 .detox-blocked {
     opacity: 1 !important;
     pointer-events: none !important;
 }
 
-/* =========================================================
-   BLOCKED TITLE STYLE
-========================================================= */
-
 .detox-decoy-title {
-    color: #71717a !important;
-    font-size: 14px !important;
-    line-height: 20px !important;
+    color: #52525b !important;
+    font-size: 13px !important;
+    line-height: 18px !important;
     font-weight: 500 !important;
-    margin-top: 8px !important;
+    margin-top: 6px !important;
     pointer-events: none !important;
     user-select: none !important;
+    font-style: italic !important;
 }
-
-/* =========================================================
-   REMOVE ORIGINAL TITLE VISUALLY
-========================================================= */
 
 .detox-hidden-title {
     display: none !important;
 }
 
 @keyframes detox-shimmer {
-    0%{
-        background-position: 200% 0;
-    }
-    100%{
-        background-position: -200% 0;
-    }
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
-/* =========================================================
-   HIDE SHORTS SHELVES (FEED & SEARCH)
-========================================================= */
+@keyframes detox-fade-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes detox-float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-10px); }
+}
+
 ytd-reel-shelf-renderer,
 ytd-rich-shelf-renderer[is-shorts] {
     display: none !important;
 }
 
-/* OVERLAY FOR SHORTS PAGE */
 #detox-shorts-block-overlay {
     position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    background: #0f0f0f !important;
-    color: white !important;
+    inset: 0 !important;
+    background: radial-gradient(ellipse at 50% 40%, #0f0a1e 0%, #09090b 65%) !important;
     z-index: 9999999 !important;
     display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
     align-items: center !important;
-    font-family: sans-serif !important;
+    justify-content: center !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    animation: detox-fade-in 0.4s cubic-bezier(0.16,1,0.3,1) forwards !important;
+}
+
+#detox-shorts-block-overlay .detox-card {
+    background: rgba(255,255,255,0.03) !important;
+    border: 1px solid rgba(139,92,246,0.2) !important;
+    border-radius: 28px !important;
+    padding: 52px 44px !important;
+    max-width: 420px !important;
+    width: 88% !important;
+    text-align: center !important;
+    box-shadow: 0 0 0 1px rgba(139,92,246,0.08), 0 32px 64px rgba(0,0,0,0.6) !important;
+    backdrop-filter: blur(24px) !important;
+}
+
+#detox-shorts-block-overlay .detox-icon {
+    font-size: 60px !important;
+    display: block !important;
+    margin-bottom: 22px !important;
+    filter: drop-shadow(0 0 24px rgba(139,92,246,0.7)) !important;
+    animation: detox-float 3.5s ease-in-out infinite !important;
+}
+
+#detox-shorts-block-overlay h1 {
+    color: #fafafa !important;
+    font-size: 30px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.03em !important;
+    margin: 0 0 12px !important;
+}
+
+#detox-shorts-block-overlay p {
+    color: #71717a !important;
+    font-size: 15px !important;
+    line-height: 1.65 !important;
+    margin: 0 0 32px !important;
+}
+
+#detox-shorts-block-overlay .detox-btn {
+    display: inline-block !important;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 14px !important;
+    padding: 13px 30px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    letter-spacing: -0.01em !important;
+    box-shadow: 0 4px 24px rgba(99,102,241,0.35) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+#detox-shorts-block-overlay .detox-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 32px rgba(99,102,241,0.45) !important;
 }
 
 `;
@@ -153,22 +182,20 @@ function blockShortsPage() {
         return;
     }
 
-    // If we are on a shorts page and the overlay isn't there, create it
     if (!existingOverlay) {
         const overlay = document.createElement("div");
         overlay.id = "detox-shorts-block-overlay";
         overlay.innerHTML = `
-            <div>
-                <h1 style="margin-bottom: 16px;">🚫 Shorts Blocked</h1>
-                <p style="color: #a1a1aa; margin-bottom: 24px;">Shorts are disabled to protect your focus.</p>
-                <button onclick="window.location.href='/'" style="padding: 10px 20px; background: #fafafa; color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Go to Home</button>
+            <div class="detox-card">
+                <span class="detox-icon">🛡</span>
+                <h1>Shorts Blocked</h1>
+                <p>YouTube Shorts are disabled to keep you focused and protect your time.</p>
+                <button class="detox-btn" onclick="window.location.href='/'">← Return to Feed</button>
             </div>
         `;
         document.body.appendChild(overlay);
 
-        // Pause the short video in the background
-        const videoElements = document.querySelectorAll("video");
-        videoElements.forEach(v => v.pause());
+        document.querySelectorAll("video").forEach(v => v.pause());
     }
 }
 
@@ -250,82 +277,51 @@ function blockThumbnail(videoElement) {
         img.style.visibility = "hidden";
     });
 
-    // Overlay
     const overlay = document.createElement("div");
-
     overlay.className = "detox-overlay";
+    overlay.style.cssText = `
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #09090b 0%, #0f0a1e 50%, #09090b 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        z-index: 999999;
+        cursor: not-allowed;
+        border: 1px solid rgba(99,102,241,0.15);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 0 32px rgba(0,0,0,0.4);
+        animation: detox-fade-in 0.25s ease-out forwards;
+    `;
 
-    overlay.style.position = "absolute";
-    overlay.style.top = "0";
-    overlay.style.left = "0";
+    overlay.innerHTML = `
+        <div style="
+            display:flex; flex-direction:column;
+            align-items:center; gap:8px;
+            padding:16px; text-align:center;
+        ">
+            <span style="
+                font-size:32px;
+                filter: drop-shadow(0 0 14px rgba(139,92,246,0.65));
+            ">🛡</span>
+            <div style="
+                color:#fafafa; font-size:14px;
+                font-weight:700; letter-spacing:-0.02em;
+                font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+            ">Focus Protected</div>
+            <div style="
+                color:#52525b; font-size:11px;
+                line-height:1.4;
+                font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+            ">Blocked by Detoxify YT</div>
+        </div>
+    `;
 
-    overlay.style.width = "100%";
-    overlay.style.height = "100%";
-
-    overlay.style.backgroundColor = "#18181b";
-
-    overlay.style.display = "flex";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
-
-    overlay.style.borderRadius = "12px";
-
-    overlay.style.zIndex = "999999";
-
-    overlay.style.cursor = "not-allowed";
-
-    overlay.addEventListener(
-        "click",
-        (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-        },
-        true
-    );
-
-    const content = document.createElement("div");
-
-    content.style.display = "flex";
-    content.style.flexDirection = "column";
-    content.style.alignItems = "center";
-    content.style.justifyContent = "center";
-    content.style.gap = "10px"
-    content.style.textAlign = "center";
-    content.style.padding = "20px";
-
-    const shield = document.createElement("div");
-
-    shield.innerText = "🛡";
-
-    shield.style.fontSize = "42px"
-
-    const heading = document.createElement("div");
-
-    heading.innerText = "Focus Protected";
-
-    heading.style.color = "#fafafa"
-    heading.style.fontSize = "18px"
-    heading.style.fontWeight = "600"
-
-    const subtitle = document.createElement("div");
-
-    subtitle.innerText = "Distracting content blocked"
-
-    subtitle.style.color = "#71717a"
-    subtitle.style.fontSize = "13px"
-    subtitle.style.lineHeight = "18px"
-
-    content.appendChild(shield);
-    content.appendChild(heading);
-    content.appendChild(subtitle);
-
-    overlay.appendChild(content);
-
-    overlay.style.backdropFilter = "blur(10px)";
-    overlay.style.border = "1px solid #27272a";
-    overlay.style.boxShadow =
-        "0 0 20px rgba(0,0,0,0.35)";
+    overlay.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+    }, true);
 
     thumbnail.appendChild(overlay);
 }
