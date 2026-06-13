@@ -72,6 +72,12 @@ function App() {
                   action: "updateSettings",
                   categories,
                   isEnabled: isFilterEnabled
+                },
+                () => {
+                  // Suppress harmless "Receiving end does not exist" error
+                  if (chrome.runtime.lastError) {
+                    console.log("Tab not ready yet, ignoring.");
+                  }
                 }
               );
             }

@@ -27,16 +27,16 @@ async function evaluateWithGemini(titles) {
 
         const storage = await chrome.storage.local.get([
             'allowedCategories',
-            'filterEnabled'
+            'filterEnabled',
+            'geminiApiKey'
         ]);
 
         if (
             !storage.filterEnabled ||
-            !storage.allowedCategories
+            !storage.allowedCategories ||
+            !storage.geminiApiKey
         ) {
-
-            console.log("Filter disabled.");
-
+            console.log("Filter disabled, missing categories, or API key missing.");
             return titles.map(() => "keep");
         }
 
@@ -67,32 +67,49 @@ async function evaluateWithGemini(titles) {
         }
 
 
+        const prompt = `
+You are a strict productivity filter.
+The user ONLY wants content related to: ${storage.allowedCategories}
+
+Evaluate these YouTube titles.
+Return ONLY a valid JSON array.
+
+Rules:
+- "keep" → relevant/productive
+- "block" → distracting/irrelevant
+
+The array length MUST exactly match input length.
+
+Input titles:
+${JSON.stringify(uncachedTitles)}
+`;
+
         const response = await fetch(
-            "http://localhost:3000/evaluate",
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${storage.geminiApiKey}`,
             {
                 method: "POST",
-
                 headers: {
                     "Content-Type": "application/json"
                 },
-
                 body: JSON.stringify({
-                    titles: uncachedTitles,
-                    categories: storage.allowedCategories
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        response_mime_type: "application/json"
+                    }
                 })
             }
         );
 
         if (!response.ok) {
-
-            throw new Error(
-                `Backend error: ${response.status}`
-            );
+            const errorText = await response.text();
+            throw new Error(`Gemini API Error ${response.status}: ${errorText}`);
         }
 
-        const data = await response.json();
+        const jsonResponse = await response.json();
+        const rawText = jsonResponse.candidates[0].content.parts[0].text;
+        const data = { decisions: JSON.parse(rawText) };
 
-        console.log("Backend response:", data);
+        console.log("Gemini API response:", data);
 
         // Get the freshest cache before updating
         const currentSession = await chrome.storage.session.get('titleCache');
