@@ -182,20 +182,43 @@ function blockShortsPage() {
         return;
     }
 
+    // If we are on a shorts page and the overlay isn't there, create it
     if (!existingOverlay) {
         const overlay = document.createElement("div");
         overlay.id = "detox-shorts-block-overlay";
         overlay.innerHTML = `
             <div class="detox-card">
-                <span class="detox-icon">🛡</span>
-                <h1>Shorts Blocked</h1>
-                <p>YouTube Shorts are disabled to keep you focused and protect your time.</p>
-                <button class="detox-btn" onclick="window.location.href='/'">← Return to Feed</button>
+                <h1 style="margin-bottom: 16px;">🚫 Shorts Blocked</h1>
+                <p style="color: #a1a1aa; margin-bottom: 24px;">Shorts are disabled to protect your focus.</p>
+                <button id="detox-go-home" style="padding: 10px 20px; background: #fafafa; color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Go to Home</button>
             </div>
         `;
         document.body.appendChild(overlay);
 
-        document.querySelectorAll("video").forEach(v => v.pause());
+        // Ensure the button works even though the overlay swallows clicks
+        const goHomeBtn = document.getElementById("detox-go-home");
+        if (goHomeBtn) {
+            goHomeBtn.addEventListener("click", (e) => {
+                e.stopPropagation(); // let the navigation happen
+                window.location.href = "/";
+            });
+        }
+        // Guard: if any audio element starts playing while the Shorts overlay is visible, pause it instantly
+        document.addEventListener('play', (e) => {
+            if (e.target.tagName === 'AUDIO' && document.getElementById('detox-shortss-block-overlay')) {
+                e.target.pause();
+            }
+        }, true);
+
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === 'updateSettings') {
+        console.log('Content script received settings update');
+        // Reset cached decisions so newly‑enabled filter re‑evaluates all videos
+        decisionCache.clear();
+        blockShortsPage();
+        processVideos();
+    }
+});
     }
 }
 
