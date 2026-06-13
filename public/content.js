@@ -90,6 +90,31 @@ style.textContent = `
     }
 }
 
+/* =========================================================
+   HIDE SHORTS SHELVES (FEED & SEARCH)
+========================================================= */
+ytd-reel-shelf-renderer,
+ytd-rich-shelf-renderer[is-shorts] {
+    display: none !important;
+}
+
+/* OVERLAY FOR SHORTS PAGE */
+#detox-shorts-block-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: #0f0f0f !important;
+    color: white !important;
+    z-index: 9999999 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    font-family: sans-serif !important;
+}
+
 `;
 
 
@@ -107,8 +132,45 @@ const VIDEO_CARD_SELECTOR = [
     "ytd-video-renderer",
     "ytd-grid-video-renderer",
     "ytd-compact-video-renderer",
-    "ytd-rich-grid-media"
+    "ytd-rich-grid-media",
+    "ytd-reel-item-renderer",
+    "ytd-rich-grid-slim-media"
 ].join(",");
+
+function isShortsPage() {
+    // Check if the current URL path starts with /shorts/
+    return window.location.pathname.startsWith("/shorts/");
+}
+
+function blockShortsPage() {
+    const existingOverlay = document.getElementById("detox-shorts-block-overlay");
+
+    // If we're not on a shorts page, remove the overlay if it exists
+    if (!isShortsPage()) {
+        if (existingOverlay) {
+            existingOverlay.remove();
+        }
+        return;
+    }
+
+    // If we are on a shorts page and the overlay isn't there, create it
+    if (!existingOverlay) {
+        const overlay = document.createElement("div");
+        overlay.id = "detox-shorts-block-overlay";
+        overlay.innerHTML = `
+            <div>
+                <h1 style="margin-bottom: 16px;">🚫 Shorts Blocked</h1>
+                <p style="color: #a1a1aa; margin-bottom: 24px;">Shorts are disabled to protect your focus.</p>
+                <button onclick="window.location.href='/'" style="padding: 10px 20px; background: #fafafa; color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Go to Home</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Pause the short video in the background
+        const videoElements = document.querySelectorAll("video");
+        videoElements.forEach(v => v.pause());
+    }
+}
 
 /* =========================================================
    TITLE REPLACEMENT
@@ -498,8 +560,23 @@ observer.observe(document.body, {
 });
 
 /* =========================================================
-   INITIAL LOAD
+   SPA NAVIGATION LISTENERS & INITIAL LOAD
 ========================================================= */
+
+// YouTube uses custom events for its Single Page Application navigation
+window.addEventListener("yt-navigate-finish", () => {
+    blockShortsPage();
+    // processVideos will automatically be called by the MutationObserver when elements load,
+    // but running it here helps catch things quickly.
+    processVideos();
+});
+
+// Fallback for popstate (browser back/forward button)
+window.addEventListener("popstate", () => {
+    blockShortsPage();
+});
+
+blockShortsPage();
 
 setTimeout(() => {
     processVideos();
